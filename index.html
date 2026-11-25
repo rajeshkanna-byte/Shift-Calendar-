@@ -1,0 +1,1924 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+    <!-- iPhone / iOS Safari Home Screen Web App Support -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="ShiftSync">
+    <meta name="theme-color" content="#4f46e5">
+    <title>ShiftSync — 3-Workplace Schedule, Weekly & Bi-Weekly Hours</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Sleek Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        /* Print Styles for Clean Calendar PDF / Paper Output */
+        @media print {
+            body {
+                background: #ffffff !important;
+                color: #0f172a !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .print-full-width {
+                width: 100% !important;
+                max-width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                box-shadow: none !important;
+                border: none !important;
+            }
+            .calendar-cell {
+                min-height: 105px !important;
+                border: 1px solid #cbd5e1 !important;
+                break-inside: avoid;
+                page-break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased selection:bg-indigo-100 selection:text-indigo-900 min-h-screen flex flex-col">
+
+    <!-- Hidden file input for JSON Backup Restore -->
+    <input type="file" id="restoreJsonInput" accept=".json,application/json" class="hidden">
+
+    <!-- ===================================================================== -->
+    <!-- TOP NAVIGATION HEADER                                                 -->
+    <!-- ===================================================================== -->
+    <header class="bg-white/95 backdrop-blur-md border-b border-slate-200 sticky top-0 z-30 no-print">
+        <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2 sm:gap-4">
+
+            <!-- Brand Identity -->
+            <div class="flex items-center gap-2.5 min-w-0">
+                <div class="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-sm shadow-indigo-200 flex-shrink-0">
+                    <i class="fa-regular fa-calendar-check text-lg"></i>
+                </div>
+                <div class="truncate">
+                    <h1 class="text-base sm:text-lg font-bold tracking-tight text-slate-900 leading-tight truncate">ShiftSync</h1>
+                    <p class="text-[11px] text-slate-500 hidden sm:block">3-Workplace Schedule • Weekly &amp; Bi-Weekly</p>
+                </div>
+            </div>
+
+            <!-- Month Navigation Controls -->
+            <div class="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200/70">
+                <button id="prevMonthBtn" type="button" class="p-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-white transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500" title="Previous Month" aria-label="Previous Month">
+                    <i class="fa-solid fa-chevron-left text-xs"></i>
+                </button>
+                <div class="px-2.5 sm:px-5 min-w-[125px] sm:min-w-[175px] text-center">
+                    <h2 id="currentMonthYear" class="text-xs sm:text-base font-bold text-slate-800 select-none">November 2026</h2>
+                </div>
+                <button id="nextMonthBtn" type="button" class="p-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-white transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500" title="Next Month" aria-label="Next Month">
+                    <i class="fa-solid fa-chevron-right text-xs"></i>
+                </button>
+            </div>
+
+            <!-- Right Action Buttons -->
+            <div class="flex items-center gap-1.5 sm:gap-2">
+                <button id="todayBtn" type="button" class="px-2.5 sm:px-3 py-2 text-xs sm:text-sm font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all shadow-2xs">
+                    Today
+                </button>
+
+                <!-- Export & Backup Dropdown -->
+                <div class="relative" id="exportDropdownContainer">
+                    <button id="exportMenuBtn" type="button" class="p-2 sm:px-3 sm:py-2 text-xs sm:text-sm font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all flex items-center gap-2 shadow-2xs" title="Export & Backup">
+                        <i class="fa-solid fa-arrow-up-from-bracket text-slate-500"></i>
+                        <span class="hidden md:inline">Export</span>
+                    </button>
+                    <div id="exportDropdown" class="hidden absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-40">
+                        <div class="px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">Reports</div>
+                        <button id="exportCsvBtn" type="button" class="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2.5">
+                            <i class="fa-solid fa-file-csv text-emerald-600 w-4"></i> Download CSV
+                        </button>
+                        <button id="printViewBtn" type="button" class="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2.5">
+                            <i class="fa-solid fa-print text-indigo-600 w-4"></i> Print / Save PDF
+                        </button>
+                        <div class="my-1.5 border-t border-slate-100"></div>
+                        <div class="px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">Device Backup</div>
+                        <button id="backupJsonBtn" type="button" class="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2.5">
+                            <i class="fa-solid fa-download text-sky-600 w-4"></i> Backup (.json)
+                        </button>
+                        <button id="restoreJsonBtn" type="button" class="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2.5">
+                            <i class="fa-solid fa-upload text-amber-600 w-4"></i> Restore (.json)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Customize Workplaces Button -->
+                <button id="openWorkplaceModalBtn" type="button" class="p-2 sm:px-3.5 sm:py-2 text-xs sm:text-sm font-semibold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 transition-all flex items-center gap-2 shadow-sm shadow-indigo-200" title="Customize Workplaces">
+                    <i class="fa-solid fa-sliders"></i>
+                    <span class="hidden sm:inline">Workplaces</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- ===================================================================== -->
+    <!-- MAIN DASHBOARD LAYOUT                                                 -->
+    <!-- ===================================================================== -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-6 flex flex-col lg:flex-row gap-6 print-full-width">
+
+        <!-- LEFT SIDEBAR: Workplaces Filter, Weekly Hours, Bi-Weekly Pay Periods, Monthly Summary -->
+        <aside class="w-full lg:w-80 xl:w-[356px] flex-shrink-0 flex flex-col gap-5 no-print order-2 lg:order-1">
+
+            <!-- 1. Your 3 Workplaces & Visibility Filters -->
+            <div class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-2xs">
+                <div class="flex items-center justify-between mb-2.5">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Your 3 Workplaces</h3>
+                    <button id="editWorkplacesLink" type="button" class="text-xs font-semibold text-indigo-600 hover:text-indigo-700 transition-colors">
+                        Edit Names &amp; Rates
+                    </button>
+                </div>
+                <p class="text-xs text-slate-500 mb-3.5">Check or uncheck jobs to filter the calendar:</p>
+                <div id="workplaceFiltersList" class="space-y-2.5">
+                    <!-- Populated via JS -->
+                </div>
+            </div>
+
+            <!-- 2. Weekly Hours Breakdown (Mon-Sun for Job #2, Sun-Sat for Jobs #1 & #3) -->
+            <div class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-2xs">
+                <div class="flex items-center justify-between mb-2.5">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Weekly Hours</h3>
+                    <div class="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200/70">
+                        <button type="button" id="prevWeekBtn" class="p-1.5 rounded-md text-slate-600 hover:text-slate-900 hover:bg-white transition-all" title="Previous Week" aria-label="Previous Week">
+                            <i class="fa-solid fa-chevron-left text-[10px]"></i>
+                        </button>
+                        <button type="button" id="currentWeekBtn" class="px-2 py-1 text-[11px] font-semibold text-slate-700 hover:text-indigo-600 transition-colors" title="Jump to Today's Week">
+                            This Week
+                        </button>
+                        <button type="button" id="nextWeekBtn" class="p-1.5 rounded-md text-slate-600 hover:text-slate-900 hover:bg-white transition-all" title="Next Week" aria-label="Next Week">
+                            <i class="fa-solid fa-chevron-right text-[10px]"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <p class="text-[11px] text-slate-500 mb-3.5 leading-relaxed">
+                    Anchored to <span class="week-anchor-date font-semibold text-slate-700">Nov 24, 2026</span>.
+                    <span class="font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200/80">Job #2 uses Mon–Sun</span>; Jobs #1 &amp; #3 use Sun–Sat.
+                </p>
+
+                <!-- Combined Weekly Total Banner -->
+                <div class="flex items-center justify-between px-3.5 py-2.5 mb-3.5 rounded-xl bg-slate-900 text-white">
+                    <div>
+                        <span class="text-[11px] uppercase tracking-wider text-slate-300 font-semibold block">Combined Week Total</span>
+                        <span id="combinedWeekShifts" class="text-[11px] text-slate-400">0 shifts across 3 jobs</span>
+                    </div>
+                    <div class="text-right">
+                        <span id="combinedWeekHours" class="text-xl font-extrabold text-white">0h</span>
+                        <span id="combinedWeekPay" class="hidden text-[11px] font-semibold text-emerald-400 block">$0.00 est.</span>
+                    </div>
+                </div>
+
+                <!-- Individual Job Weekly Cards -->
+                <div id="weeklyHoursBreakdown" class="space-y-2.5">
+                    <!-- Populated via JS -->
+                </div>
+            </div>
+
+            <!-- 3. Bi-Weekly (2-Week) Pay Period Totals (Week 1 + Week 2) -->
+            <div class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-2xs">
+                <div class="flex items-center justify-between mb-2.5">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Bi-Weekly Pay Periods</h3>
+                    <div class="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200/70">
+                        <button type="button" id="prevBiweekBtn" class="p-1.5 rounded-md text-slate-600 hover:text-slate-900 hover:bg-white transition-all" title="Previous 2-Week Period" aria-label="Previous 2-Week Period">
+                            <i class="fa-solid fa-chevron-left text-[10px]"></i>
+                        </button>
+                        <button type="button" id="currentBiweekBtn" class="px-2 py-1 text-[11px] font-semibold text-slate-700 hover:text-indigo-600 transition-colors" title="Jump to Today's Pay Period">
+                            Current 2-Wk
+                        </button>
+                        <button type="button" id="nextBiweekBtn" class="p-1.5 rounded-md text-slate-600 hover:text-slate-900 hover:bg-white transition-all" title="Next 2-Week Period" aria-label="Next 2-Week Period">
+                            <i class="fa-solid fa-chevron-right text-[10px]"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <p class="text-[11px] text-slate-500 mb-3.5 leading-relaxed">
+                    Date <span class="week-anchor-date font-semibold text-slate-700">Nov 24, 2026</span>. Jobs #1 &amp; #3 anchor to <strong class="text-slate-700">Nov 8</strong>; Job #2 anchors to <strong class="text-emerald-700">Nov 9</strong> (14-day cycles split into Week 1 &amp; Week 2).
+                </p>
+
+                <!-- Combined 2-Week Total Banner -->
+                <div class="flex items-center justify-between px-3.5 py-2.5 mb-3.5 rounded-xl bg-indigo-950 text-white">
+                    <div>
+                        <span class="text-[11px] uppercase tracking-wider text-indigo-200 font-semibold block">Total 2-Week Hours</span>
+                        <span id="combinedBiweekShifts" class="text-[11px] text-indigo-300/80">W1: 0h • W2: 0h</span>
+                    </div>
+                    <div class="text-right">
+                        <span id="combinedBiweekHours" class="text-xl font-extrabold text-white">0h</span>
+                        <span id="combinedBiweekPay" class="hidden text-[11px] font-semibold text-emerald-400 block">$0.00 est.</span>
+                    </div>
+                </div>
+
+                <!-- Per-Workplace Bi-Weekly Cards -->
+                <div id="biweeklyBreakdown" class="space-y-3">
+                    <!-- Populated via JS -->
+                </div>
+            </div>
+
+            <!-- 4. Monthly Summary & Pay Estimator -->
+            <div class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-2xs">
+                <div class="flex items-center justify-between mb-3.5">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Monthly Summary</h3>
+                    <span id="summaryMonthBadge" class="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100">Nov 2026</span>
+                </div>
+
+                <!-- Grand Total Highlight -->
+                <div id="monthlySummaryTotalsGrid" class="grid grid-cols-2 gap-3 mb-4 p-3.5 rounded-xl bg-slate-50 border border-slate-200/70">
+                    <div>
+                        <p class="text-[11px] font-medium text-slate-500">Total Shifts</p>
+                        <p id="totalMonthShifts" class="text-xl font-extrabold text-slate-900 mt-0.5">0</p>
+                    </div>
+                    <div class="border-l border-slate-200 pl-3">
+                        <p class="text-[11px] font-medium text-slate-500">Total Hours</p>
+                        <p id="totalMonthHours" class="text-xl font-extrabold text-indigo-600 mt-0.5">0h</p>
+                    </div>
+                    <div id="totalMonthPayBox" class="hidden col-span-2 pt-2.5 mt-0.5 border-t border-slate-200 flex items-center justify-between">
+                        <span class="text-xs font-medium text-slate-600">Est. Monthly Gross Pay</span>
+                        <span id="totalMonthPay" class="text-base font-extrabold text-emerald-600">$0.00</span>
+                    </div>
+                </div>
+
+                <!-- Per-Workplace Monthly Breakdown -->
+                <div id="workplaceSummaryBreakdown" class="space-y-4">
+                    <!-- Populated via JS -->
+                </div>
+            </div>
+
+        </aside>
+
+        <!-- RIGHT MAIN AREA: Interactive Monthly Calendar Grid -->
+        <section class="flex-1 bg-white rounded-2xl border border-slate-200/80 shadow-2xs overflow-hidden flex flex-col order-1 lg:order-2 print-full-width">
+
+            <!-- Print-Only Title & Legend -->
+            <div class="hidden print:flex items-center justify-between p-4 border-b border-slate-200">
+                <div>
+                    <h1 class="text-xl font-bold" id="printMonthTitle">November 2026 Schedule</h1>
+                    <p class="text-xs text-slate-500" id="printSummaryLine"></p>
+                </div>
+                <div id="printLegend" class="flex gap-3 text-xs"></div>
+            </div>
+
+            <!-- Calendar Sub-bar (Mobile Quick Hint) -->
+            <div class="px-4 py-2.5 bg-slate-50/70 border-b border-slate-200/80 flex items-center justify-between text-xs text-slate-500 no-print">
+                <span class="flex items-center gap-1.5">
+                    <i class="fa-regular fa-hand-pointer text-indigo-500"></i>
+                    <span>Tap any date to add shifts, notes, or sync weekly &amp; 2-week totals</span>
+                </span>
+                <button type="button" id="quickAddTodayBtn" class="font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-1">
+                    <i class="fa-solid fa-plus text-[10px]"></i> Add Shift
+                </button>
+            </div>
+
+            <!-- Days of Week Header (Sun - Sat) -->
+            <div class="grid grid-cols-7 border-b border-slate-200 bg-slate-100/70">
+                <div class="py-2.5 text-center text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-500">Sun</div>
+                <div class="py-2.5 text-center text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-600">Mon</div>
+                <div class="py-2.5 text-center text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-600">Tue</div>
+                <div class="py-2.5 text-center text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-600">Wed</div>
+                <div class="py-2.5 text-center text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-600">Thu</div>
+                <div class="py-2.5 text-center text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-600">Fri</div>
+                <div class="py-2.5 text-center text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-500">Sat</div>
+            </div>
+
+            <!-- Calendar Days Grid -->
+            <div id="calendarGrid" class="grid grid-cols-7 flex-1 auto-rows-fr divide-x divide-y divide-slate-100">
+                <!-- Populated via JS -->
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ===================================================================== -->
+    <!-- MODAL 1: Day Schedule & Shift Editor Modal                            -->
+    <!-- ===================================================================== -->
+    <div id="dayModal" class="fixed inset-0 z-50 hidden items-center justify-center p-3 sm:p-4 bg-slate-900/50 backdrop-blur-xs transition-opacity" aria-modal="true" role="dialog">
+        <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden flex flex-col max-h-[92vh]">
+
+            <!-- Modal Header -->
+            <div class="px-5 sm:px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
+                <div>
+                    <span class="text-xs font-bold uppercase tracking-wider text-indigo-600" id="modalDayOfWeek">Tuesday</span>
+                    <h3 class="text-lg font-extrabold text-slate-900" id="modalFullDate">November 24, 2026</h3>
+                </div>
+                <button id="closeDayModalBtn" type="button" class="w-9 h-9 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 flex items-center justify-center transition-colors" aria-label="Close">
+                    <i class="fa-solid fa-xmark text-base"></i>
+                </button>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="p-5 sm:p-6 overflow-y-auto space-y-6 flex-1">
+
+                <!-- Existing Shifts List -->
+                <div>
+                    <div class="flex items-center justify-between mb-2.5">
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400">Scheduled Shifts</h4>
+                        <span id="dayShiftCountBadge" class="text-xs font-semibold text-slate-500">0 shifts</span>
+                    </div>
+                    <div id="dayShiftsContainer" class="space-y-2.5">
+                        <!-- Populated via JS -->
+                    </div>
+                </div>
+
+                <!-- Add / Edit Shift Form -->
+                <form id="shiftForm" class="bg-slate-50 rounded-2xl p-4 sm:p-5 border border-slate-200/80 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <h4 id="shiftFormTitle" class="text-sm font-bold text-slate-800 flex items-center gap-2">
+                            <i class="fa-solid fa-plus-circle text-indigo-600"></i> Add Shift
+                        </h4>
+                        <button type="button" id="cancelEditShiftBtn" class="hidden text-xs font-semibold text-rose-600 hover:text-rose-700 underline">
+                            Cancel Edit
+                        </button>
+                    </div>
+
+                    <input type="hidden" id="editingShiftId" value="">
+
+                    <!-- Select Workplace -->
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1.5">Select Workplace</label>
+                        <div id="workplaceRadioGroup" class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                            <!-- Populated via JS -->
+                        </div>
+                    </div>
+
+                    <!-- Quick Presets -->
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1.5">Quick Time Presets</label>
+                        <div class="flex flex-wrap gap-1.5">
+                            <button type="button" data-start="08:00" data-end="16:00" class="preset-btn px-2.5 py-1.5 text-xs font-medium bg-white border border-slate-200 rounded-lg hover:border-indigo-400 hover:text-indigo-700 transition-colors">
+                                <i class="fa-regular fa-sun text-amber-500 mr-1"></i> Morning (08:00–16:00)
+                            </button>
+                            <button type="button" data-start="16:00" data-end="00:00" class="preset-btn px-2.5 py-1.5 text-xs font-medium bg-white border border-slate-200 rounded-lg hover:border-indigo-400 hover:text-indigo-700 transition-colors">
+                                <i class="fa-solid fa-cloud-sun text-orange-500 mr-1"></i> Evening (16:00–00:00)
+                            </button>
+                            <button type="button" data-start="00:00" data-end="08:00" class="preset-btn px-2.5 py-1.5 text-xs font-medium bg-white border border-slate-200 rounded-lg hover:border-indigo-400 hover:text-indigo-700 transition-colors">
+                                <i class="fa-regular fa-moon text-indigo-500 mr-1"></i> Night (00:00–08:00)
+                            </button>
+                            <button type="button" id="customPresetBtn" class="px-2.5 py-1.5 text-xs font-medium bg-white border border-slate-200 rounded-lg hover:border-slate-400 text-slate-600 transition-colors">
+                                <i class="fa-regular fa-clock mr-1"></i> Custom
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Start & End Times + Live Duration Pill -->
+                    <div>
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-xs font-bold text-slate-700">Shift Hours</span>
+                            <span id="liveShiftDurationBadge" class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800">8.0 hrs</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label for="shiftStartTime" class="block text-[11px] font-medium text-slate-500 mb-1">Start Time</label>
+                                <input type="time" id="shiftStartTime" required value="08:00" class="w-full px-3 py-2 text-sm font-medium bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                            </div>
+                            <div>
+                                <label for="shiftEndTime" class="block text-[11px] font-medium text-slate-500 mb-1">End Time</label>
+                                <input type="time" id="shiftEndTime" required value="16:00" class="w-full px-3 py-2 text-sm font-medium bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Shift Notes -->
+                    <div>
+                        <label for="shiftNotes" class="block text-[11px] font-bold text-slate-700 mb-1">Shift Notes <span class="text-slate-400 font-normal">(Optional)</span></label>
+                        <textarea id="shiftNotes" rows="2" placeholder="e.g., Closing shift, covering for Sam, bring keys..." class="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none"></textarea>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <div class="pt-1 flex justify-end">
+                        <button type="submit" id="saveShiftBtn" class="w-full sm:w-auto px-5 py-2.5 text-sm font-bold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 transition-all shadow-sm shadow-indigo-200 flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-check"></i> <span id="saveShiftBtnText">Save Shift</span>
+                        </button>
+                    </div>
+                </form>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- MODAL 2: Customize 3 Workplaces (Name, Color, Rate, 2-Wk Anchor)     -->
+    <!-- ===================================================================== -->
+    <div id="workplaceModal" class="fixed inset-0 z-50 hidden items-center justify-center p-3 sm:p-4 bg-slate-900/50 backdrop-blur-xs transition-opacity" aria-modal="true" role="dialog">
+        <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden flex flex-col max-h-[92vh]">
+
+            <div class="px-5 sm:px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
+                <div>
+                    <h3 class="text-lg font-extrabold text-slate-900">Customize Your 3 Workplaces</h3>
+                    <p class="text-xs text-slate-500">Set names, colors, hourly rates &amp; 14-day pay period anchors</p>
+                </div>
+                <button id="closeWorkplaceModalBtn" type="button" class="w-9 h-9 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 flex items-center justify-center transition-colors" aria-label="Close">
+                    <i class="fa-solid fa-xmark text-base"></i>
+                </button>
+            </div>
+
+            <form id="workplacesForm" class="p-5 sm:p-6 overflow-y-auto space-y-4">
+                <div id="workplaceSettingsFields" class="space-y-4">
+                    <!-- Populated via JS -->
+                </div>
+
+                <div class="pt-3 flex items-center justify-between gap-2.5 border-t border-slate-100">
+                    <button type="button" id="resetDefaultAnchorsBtn" class="px-3 py-2 text-xs font-semibold text-slate-600 hover:text-indigo-700 bg-slate-100 hover:bg-indigo-50 rounded-xl transition-colors" title="Reset 2-Week Pay Anchors to Nov 8, Nov 9 & Nov 8, 2026">
+                        Reset Nov Pay Dates
+                    </button>
+                    <div class="flex items-center gap-2">
+                        <button type="button" id="cancelWorkplaceModalBtn" class="px-4 py-2.5 text-sm font-semibold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors">
+                            Cancel
+                        </button>
+                        <button type="submit" class="px-5 py-2.5 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-sm shadow-indigo-200 transition-all">
+                            Save Workplaces
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- ===================================================================== -->
+    <!-- APPLICATION JAVASCRIPT                                                -->
+    <!-- ===================================================================== -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- Color Palette Definitions ---
+            const COLOR_THEMES = {
+                indigo: {
+                    name: 'Indigo',
+                    bgLight: 'bg-indigo-50/90',
+                    bgPill: 'bg-indigo-100',
+                    text: 'text-indigo-800',
+                    border: 'border-indigo-200',
+                    dot: 'bg-indigo-600',
+                    bar: 'bg-indigo-500',
+                    ring: 'ring-indigo-500'
+                },
+                emerald: {
+                    name: 'Emerald',
+                    bgLight: 'bg-emerald-50/90',
+                    bgPill: 'bg-emerald-100',
+                    text: 'text-emerald-800',
+                    border: 'border-emerald-200',
+                    dot: 'bg-emerald-600',
+                    bar: 'bg-emerald-500',
+                    ring: 'ring-emerald-500'
+                },
+                amber: {
+                    name: 'Amber',
+                    bgLight: 'bg-amber-50/90',
+                    bgPill: 'bg-amber-100',
+                    text: 'text-amber-900',
+                    border: 'border-amber-200',
+                    dot: 'bg-amber-500',
+                    bar: 'bg-amber-500',
+                    ring: 'ring-amber-500'
+                },
+                rose: {
+                    name: 'Rose',
+                    bgLight: 'bg-rose-50/90',
+                    bgPill: 'bg-rose-100',
+                    text: 'text-rose-800',
+                    border: 'border-rose-200',
+                    dot: 'bg-rose-600',
+                    bar: 'bg-rose-500',
+                    ring: 'ring-rose-500'
+                },
+                sky: {
+                    name: 'Sky',
+                    bgLight: 'bg-sky-50/90',
+                    bgPill: 'bg-sky-100',
+                    text: 'text-sky-800',
+                    border: 'border-sky-200',
+                    dot: 'bg-sky-600',
+                    bar: 'bg-sky-500',
+                    ring: 'ring-sky-500'
+                },
+                purple: {
+                    name: 'Purple',
+                    bgLight: 'bg-purple-50/90',
+                    bgPill: 'bg-purple-100',
+                    text: 'text-purple-800',
+                    border: 'border-purple-200',
+                    dot: 'bg-purple-600',
+                    bar: 'bg-purple-500',
+                    ring: 'ring-purple-500'
+                }
+            };
+
+            const MONTH_NAMES = [
+                'January', 'February', 'March', 'April', 'May', 'June',
+                'July', 'August', 'September', 'October', 'November', 'December'
+            ];
+            const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+            // Default 14-day bi-weekly pay anchors:
+            // Job #1: Nov 8, 2026 (Nov 8 - Nov 21)
+            // Job #2: Nov 9, 2026 (Nov 9 - Nov 22)
+            // Job #3: Nov 8, 2026 (Nov 8 - Nov 21)
+            const DEFAULT_BIWEEK_ANCHORS = ['2026-11-08', '2026-11-09', '2026-11-08'];
+
+            const STORAGE_KEY_WORKPLACES = 'shiftsync_workplaces_v3';
+            const STORAGE_KEY_SHIFTS = 'shiftsync_shifts_v3';
+
+            // Detect actual system today date
+            const now = new Date();
+            const TODAY = {
+                year: now.getFullYear(),
+                month: now.getMonth(),
+                day: now.getDate()
+            };
+
+            function formatDateKey(year, monthZeroIndexed, day) {
+                const m = String(monthZeroIndexed + 1).padStart(2, '0');
+                const d = String(day).padStart(2, '0');
+                return `${year}-${m}-${d}`;
+            }
+
+            function parseDateKeyToLocalDate(dateStr) {
+                if (!dateStr || typeof dateStr !== 'string') return null;
+                const parts = dateStr.split('-').map(Number);
+                if (parts.length !== 3 || parts.some(isNaN)) return null;
+                return new Date(parts[0], parts[1] - 1, parts[2]);
+            }
+
+            function addDaysToDate(dateObj, numDays) {
+                const copy = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate());
+                copy.setDate(copy.getDate() + numDays);
+                return copy;
+            }
+
+            function diffDaysCalendar(dateA, dateB) {
+                // Returns whole calendar days between two local dates (dateA - dateB)
+                const utcA = Date.UTC(dateA.getFullYear(), dateA.getMonth(), dateA.getDate());
+                const utcB = Date.UTC(dateB.getFullYear(), dateB.getMonth(), dateB.getDate());
+                return Math.floor((utcA - utcB) / (1000 * 60 * 60 * 24));
+            }
+
+            // Application State
+            let state = {
+                currentYear: TODAY.year,
+                currentMonth: TODAY.month,
+                selectedDateStr: formatDateKey(TODAY.year, TODAY.month, TODAY.day),
+                selectedWeekAnchor: new Date(TODAY.year, TODAY.month, TODAY.day),
+                workplaces: [],
+                shifts: {} // { "YYYY-MM-DD": [ { id, workplaceId, start, end, notes } ] }
+            };
+
+            function getDefaultWorkplaces() {
+                return [
+                    {
+                        id: 'wp-1',
+                        name: 'Workplace 1 (Main)',
+                        color: 'indigo',
+                        hourlyRate: 0,
+                        visible: true,
+                        biweekAnchor: DEFAULT_BIWEEK_ANCHORS[0]
+                    },
+                    {
+                        id: 'wp-2',
+                        name: 'Workplace 2 (Mon–Sun)',
+                        color: 'emerald',
+                        hourlyRate: 0,
+                        visible: true,
+                        biweekAnchor: DEFAULT_BIWEEK_ANCHORS[1]
+                    },
+                    {
+                        id: 'wp-3',
+                        name: 'Workplace 3 (Part-Time)',
+                        color: 'amber',
+                        hourlyRate: 0,
+                        visible: true,
+                        biweekAnchor: DEFAULT_BIWEEK_ANCHORS[2]
+                    }
+                ];
+            }
+
+            function loadState() {
+                try {
+                    const savedWp = localStorage.getItem(STORAGE_KEY_WORKPLACES);
+                    const savedShifts = localStorage.getItem(STORAGE_KEY_SHIFTS);
+
+                    if (savedWp) {
+                        const parsed = JSON.parse(savedWp);
+                        if (Array.isArray(parsed) && parsed.length === 3) {
+                            state.workplaces = parsed.map((wp, idx) => ({
+                                id: wp.id || `wp-${idx + 1}`,
+                                name: wp.name || `Workplace ${idx + 1}`,
+                                color: COLOR_THEMES[wp.color] ? wp.color : ['indigo', 'emerald', 'amber'][idx],
+                                hourlyRate: typeof wp.hourlyRate === 'number' ? wp.hourlyRate : 0,
+                                visible: wp.visible !== false,
+                                biweekAnchor: parseDateKeyToLocalDate(wp.biweekAnchor)
+                                    ? wp.biweekAnchor
+                                    : DEFAULT_BIWEEK_ANCHORS[idx]
+                            }));
+                        } else {
+                            state.workplaces = getDefaultWorkplaces();
+                        }
+                    } else {
+                        state.workplaces = getDefaultWorkplaces();
+                        saveWorkplaces();
+                    }
+
+                    if (savedShifts) {
+                        const parsedShifts = JSON.parse(savedShifts);
+                        state.shifts = (parsedShifts && typeof parsedShifts === 'object') ? parsedShifts : {};
+                    }
+                } catch (err) {
+                    console.error('Error loading ShiftSync state:', err);
+                    state.workplaces = getDefaultWorkplaces();
+                    state.shifts = {};
+                }
+            }
+
+            function saveWorkplaces() {
+                try {
+                    localStorage.setItem(STORAGE_KEY_WORKPLACES, JSON.stringify(state.workplaces));
+                } catch (e) {
+                    showToast('Could not save settings to browser storage.', 'error');
+                }
+            }
+
+            function saveShifts() {
+                try {
+                    localStorage.setItem(STORAGE_KEY_SHIFTS, JSON.stringify(state.shifts));
+                } catch (e) {
+                    showToast('Could not save shifts to browser storage.', 'error');
+                }
+            }
+
+            // --- Time, Duration, Weekly & Bi-Weekly Calculation Helpers ---
+            function calculateDurationHours(startStr, endStr) {
+                if (!startStr || !endStr) return 0;
+                const [sh, sm] = startStr.split(':').map(Number);
+                const [eh, em] = endStr.split(':').map(Number);
+                let startMins = sh * 60 + sm;
+                let endMins = eh * 60 + em;
+                // Handle overnight shifts (e.g., 22:00 to 06:00 or 16:00 to 00:00)
+                if (endMins <= startMins) {
+                    endMins += 24 * 60;
+                }
+                const diffHours = (endMins - startMins) / 60;
+                return Math.round(diffHours * 100) / 100;
+            }
+
+            function formatHours(num) {
+                const rounded = Math.round(num * 10) / 10;
+                return `${rounded}h`;
+            }
+
+            function formatCurrency(amount) {
+                return new Intl.NumberFormat('en-US', {
+                    style: 'currency',
+                    currency: 'USD',
+                    minimumFractionDigits: 2
+                }).format(amount);
+            }
+
+            function formatTime12h(time24) {
+                if (!time24) return '';
+                const [hStr, mStr] = time24.split(':');
+                let h = parseInt(hStr, 10);
+                const ampm = h >= 12 ? 'p' : 'a';
+                h = h % 12 || 12;
+                return mStr === '00' ? `${h}${ampm}` : `${h}:${mStr}${ampm}`;
+            }
+
+            /**
+             * Computes start & end Date for the 7-day week containing `anchorDate`.
+             * @param {Date} anchorDate
+             * @param {boolean} isMondayStart - true for Job #2 (Mon–Sun), false for Jobs #1 & #3 (Sun–Sat)
+             */
+            function getWeekBounds(anchorDate, isMondayStart) {
+                const base = new Date(anchorDate.getFullYear(), anchorDate.getMonth(), anchorDate.getDate());
+                const dayOfWeek = base.getDay(); // 0 = Sun, 1 = Mon ... 6 = Sat
+                const diffToStart = isMondayStart
+                    ? (dayOfWeek === 0 ? -6 : 1 - dayOfWeek)
+                    : -dayOfWeek;
+
+                const start = addDaysToDate(base, diffToStart);
+                const end = addDaysToDate(start, 6);
+
+                return { start, end };
+            }
+
+            /**
+             * Computes the 14-day bi-weekly pay period containing `anchorDate`,
+             * split into Week 1 (days 1–7) and Week 2 (days 8–14).
+             */
+            function getBiweeklyPeriodBounds(anchorDate, anchorStartStr, fallbackIndex = 0) {
+                const base = new Date(anchorDate.getFullYear(), anchorDate.getMonth(), anchorDate.getDate());
+                const anchor = parseDateKeyToLocalDate(anchorStartStr)
+                    || parseDateKeyToLocalDate(DEFAULT_BIWEEK_ANCHORS[fallbackIndex])
+                    || new Date(2026, 10, 8);
+
+                const daysSinceAnchor = diffDaysCalendar(base, anchor);
+                // Floor division so dates before anchor still align to exact 14-day periods
+                const periodIndex = Math.floor(daysSinceAnchor / 14);
+                const periodStart = addDaysToDate(anchor, periodIndex * 14);
+                const periodEnd = addDaysToDate(periodStart, 13);
+
+                const week1Start = periodStart;
+                const week1End = addDaysToDate(periodStart, 6);
+
+                const week2Start = addDaysToDate(periodStart, 7);
+                const week2End = periodEnd;
+
+                return {
+                    periodIndex,
+                    periodStart,
+                    periodEnd,
+                    week1Start,
+                    week1End,
+                    week2Start,
+                    week2End
+                };
+            }
+
+            function formatShortRange(start, end) {
+                const sMon = MONTH_NAMES[start.getMonth()].slice(0, 3);
+                const eMon = MONTH_NAMES[end.getMonth()].slice(0, 3);
+                if (sMon === eMon) {
+                    return `${sMon} ${start.getDate()}–${end.getDate()}`;
+                }
+                return `${sMon} ${start.getDate()} – ${eMon} ${end.getDate()}`;
+            }
+
+            function sumWorkplaceStatsInRange(workplaceId, startDate, endDate) {
+                let hours = 0;
+                let shifts = 0;
+                const cursor = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+                const end = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+
+                while (cursor <= end) {
+                    const key = formatDateKey(cursor.getFullYear(), cursor.getMonth(), cursor.getDate());
+                    const dayShifts = state.shifts[key] || [];
+                    dayShifts.forEach(s => {
+                        if (s.workplaceId === workplaceId) {
+                            hours += calculateDurationHours(s.start, s.end);
+                            shifts += 1;
+                        }
+                    });
+                    cursor.setDate(cursor.getDate() + 1);
+                }
+
+                return {
+                    hours: Math.round(hours * 10) / 10,
+                    shifts
+                };
+            }
+
+            function escapeHTML(str) {
+                const div = document.createElement('div');
+                div.textContent = str;
+                return div.innerHTML;
+            }
+
+            function showToast(message, type = 'success') {
+                const container = document.getElementById('toastContainer');
+                const toast = document.createElement('div');
+                const icon = type === 'error'
+                    ? '<i class="fa-solid fa-circle-exclamation text-rose-400"></i>'
+                    : '<i class="fa-solid fa-circle-check text-emerald-400"></i>';
+
+                toast.className = 'bg-slate-900 text-white text-xs sm:text-sm font-medium px-4 py-3 rounded-xl shadow-lg flex items-center gap-2.5 transition-all duration-300 translate-y-2 opacity-0';
+                toast.innerHTML = `${icon}<span>${escapeHTML(message)}</span>`;
+                container.appendChild(toast);
+
+                requestAnimationFrame(() => {
+                    toast.classList.remove('translate-y-2', 'opacity-0');
+                });
+
+                setTimeout(() => {
+                    toast.classList.add('opacity-0', 'translate-y-2');
+                    setTimeout(() => toast.remove(), 300);
+                }, 2800);
+            }
+
+            // --- Rendering Functions ---
+            function renderAll() {
+                renderHeader();
+                renderAnchorLabels();
+                renderSidebarFilters();
+                renderWeeklySummary();
+                renderBiweeklySummary();
+                renderMonthlySummary();
+                renderCalendarGrid();
+            }
+
+            function renderHeader() {
+                const monthName = MONTH_NAMES[state.currentMonth];
+                document.getElementById('currentMonthYear').textContent = `${monthName} ${state.currentYear}`;
+                document.getElementById('summaryMonthBadge').textContent = `${monthName.slice(0, 3)} ${state.currentYear}`;
+                document.getElementById('printMonthTitle').textContent = `${monthName} ${state.currentYear} Work Schedule`;
+            }
+
+            function renderAnchorLabels() {
+                const anchor = state.selectedWeekAnchor;
+                const formatted = `${MONTH_NAMES[anchor.getMonth()].slice(0, 3)} ${anchor.getDate()}, ${anchor.getFullYear()}`;
+                document.querySelectorAll('.week-anchor-date').forEach(el => {
+                    el.textContent = formatted;
+                });
+            }
+
+            function renderSidebarFilters() {
+                const list = document.getElementById('workplaceFiltersList');
+                list.innerHTML = '';
+
+                state.workplaces.forEach((wp, idx) => {
+                    const theme = COLOR_THEMES[wp.color] || COLOR_THEMES.indigo;
+                    const cycleTag = idx === 1 ? 'Mon–Sun' : 'Sun–Sat';
+                    const rateTag = wp.hourlyRate > 0 ? ` • ${formatCurrency(wp.hourlyRate)}/hr` : '';
+
+                    const item = document.createElement('label');
+                    item.className = `flex items-center justify-between p-2.5 rounded-xl border ${wp.visible ? theme.border + ' ' + theme.bgLight : 'border-slate-200 bg-slate-50/70 opacity-65'} cursor-pointer transition-all hover:shadow-2xs select-none`;
+                    item.innerHTML = `
+                        <div class="flex items-center gap-2.5 min-w-0">
+                            <input type="checkbox" data-wp-id="${wp.id}" ${wp.visible ? 'checked' : ''} class="wp-filter-checkbox w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer">
+                            <span class="w-2.5 h-2.5 rounded-full flex-shrink-0 ${theme.dot}"></span>
+                            <div class="min-w-0">
+                                <span class="text-xs font-bold text-slate-800 block truncate">${escapeHTML(wp.name)}</span>
+                                <span class="text-[10px] font-medium text-slate-500 block">Job #${idx + 1} (${cycleTag}${rateTag})</span>
+                            </div>
+                        </div>
+                    `;
+                    list.appendChild(item);
+                });
+
+                document.querySelectorAll('.wp-filter-checkbox').forEach(cb => {
+                    cb.addEventListener('change', (e) => {
+                        const wpId = e.target.getAttribute('data-wp-id');
+                        const wp = state.workplaces.find(w => w.id === wpId);
+                        if (wp) {
+                            wp.visible = e.target.checked;
+                            saveWorkplaces();
+                            renderSidebarFilters();
+                            renderCalendarGrid();
+                        }
+                    });
+                });
+            }
+
+            function renderWeeklySummary() {
+                const container = document.getElementById('weeklyHoursBreakdown');
+                container.innerHTML = '';
+
+                const anchor = state.selectedWeekAnchor;
+                let combinedHours = 0;
+                let combinedShifts = 0;
+                let combinedPay = 0;
+                let hasAnyHourlyRate = false;
+
+                state.workplaces.forEach((wp, index) => {
+                    const theme = COLOR_THEMES[wp.color] || COLOR_THEMES.indigo;
+                    // Job #2 (index 1) strictly uses Monday–Sunday; Jobs #1 & #3 use Sunday–Saturday
+                    const isSecondJob = index === 1;
+                    const { start, end } = getWeekBounds(anchor, isSecondJob);
+                    const { hours, shifts } = sumWorkplaceStatsInRange(wp.id, start, end);
+
+                    combinedHours += hours;
+                    combinedShifts += shifts;
+                    if (wp.hourlyRate > 0) {
+                        hasAnyHourlyRate = true;
+                        combinedPay += hours * wp.hourlyRate;
+                    }
+
+                    const cycleLabel = isSecondJob ? 'Mon–Sun' : 'Sun–Sat';
+                    const rangeText = formatShortRange(start, end);
+                    const estPayHtml = wp.hourlyRate > 0
+                        ? `<span class="text-[11px] font-bold text-emerald-700">${formatCurrency(hours * wp.hourlyRate)}</span>`
+                        : '';
+
+                    const card = document.createElement('div');
+                    card.className = `p-3 rounded-xl border ${theme.border} ${theme.bgLight} transition-all`;
+                    card.innerHTML = `
+                        <div class="flex items-center justify-between gap-2">
+                            <div class="flex items-center gap-2 min-w-0">
+                                <span class="w-2.5 h-2.5 rounded-full flex-shrink-0 ${theme.dot}"></span>
+                                <span class="text-xs font-bold text-slate-800 truncate">${escapeHTML(wp.name)}</span>
+                            </div>
+                            <div class="text-right flex-shrink-0">
+                                <span class="text-sm font-extrabold ${theme.text}">${formatHours(hours)}</span>
+                                ${estPayHtml ? `<span class="block leading-none mt-0.5">${estPayHtml}</span>` : ''}
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between text-[11px] text-slate-600 mt-2 pt-1.5 border-t border-slate-200/70">
+                            <span class="inline-flex items-center gap-1 font-semibold px-1.5 py-0.5 rounded ${isSecondJob ? 'bg-emerald-600 text-white' : 'bg-white/90 text-slate-700 border border-slate-200/70'}">
+                                ${cycleLabel}: <span class="${isSecondJob ? 'text-emerald-100' : 'text-slate-500'} font-normal">${rangeText}</span>
+                            </span>
+                            <span class="font-medium text-slate-500">${shifts} ${shifts === 1 ? 'shift' : 'shifts'}</span>
+                        </div>
+                    `;
+                    container.appendChild(card);
+                });
+
+                document.getElementById('combinedWeekHours').textContent = formatHours(combinedHours);
+                document.getElementById('combinedWeekShifts').textContent =
+                    `${combinedShifts} ${combinedShifts === 1 ? 'shift' : 'shifts'} across 3 jobs`;
+
+                const combinedPayEl = document.getElementById('combinedWeekPay');
+                if (hasAnyHourlyRate) {
+                    combinedPayEl.textContent = `${formatCurrency(combinedPay)} est.`;
+                    combinedPayEl.classList.remove('hidden');
+                } else {
+                    combinedPayEl.classList.add('hidden');
+                }
+            }
+
+            function renderBiweeklySummary() {
+                const container = document.getElementById('biweeklyBreakdown');
+                container.innerHTML = '';
+
+                const anchor = state.selectedWeekAnchor;
+                let totalBiweekHours = 0;
+                let totalWeek1Hours = 0;
+                let totalWeek2Hours = 0;
+                let totalBiweekPay = 0;
+                let hasAnyRate = false;
+
+                state.workplaces.forEach((wp, idx) => {
+                    const theme = COLOR_THEMES[wp.color] || COLOR_THEMES.indigo;
+                    const bounds = getBiweeklyPeriodBounds(anchor, wp.biweekAnchor, idx);
+
+                    const w1 = sumWorkplaceStatsInRange(wp.id, bounds.week1Start, bounds.week1End);
+                    const w2 = sumWorkplaceStatsInRange(wp.id, bounds.week2Start, bounds.week2End);
+                    const twoWeekTotalHrs = Math.round((w1.hours + w2.hours) * 10) / 10;
+                    const twoWeekShifts = w1.shifts + w2.shifts;
+
+                    totalBiweekHours += twoWeekTotalHrs;
+                    totalWeek1Hours += w1.hours;
+                    totalWeek2Hours += w2.hours;
+
+                    if (wp.hourlyRate > 0) {
+                        hasAnyRate = true;
+                        totalBiweekPay += twoWeekTotalHrs * wp.hourlyRate;
+                    }
+
+                    const periodRangeText = formatShortRange(bounds.periodStart, bounds.periodEnd);
+                    const w1RangeText = formatShortRange(bounds.week1Start, bounds.week1End);
+                    const w2RangeText = formatShortRange(bounds.week2Start, bounds.week2End);
+                    const estPayHtml = wp.hourlyRate > 0
+                        ? `<span class="text-[11px] font-bold text-emerald-700">${formatCurrency(twoWeekTotalHrs * wp.hourlyRate)}</span>`
+                        : '';
+
+                    const card = document.createElement('div');
+                    card.className = `p-3 rounded-xl border ${theme.border} ${theme.bgLight} transition-all`;
+                    card.innerHTML = `
+                        <div class="flex items-start justify-between gap-2">
+                            <div class="min-w-0">
+                                <div class="flex items-center gap-2">
+                                    <span class="w-2.5 h-2.5 rounded-full flex-shrink-0 ${theme.dot}"></span>
+                                    <span class="text-xs font-extrabold text-slate-800 truncate">${escapeHTML(wp.name)}</span>
+                                </div>
+                                <span class="text-[11px] font-semibold text-slate-600 block mt-0.5 pl-4.5">
+                                    2-Wk Cycle: ${periodRangeText}
+                                </span>
+                            </div>
+                            <div class="text-right flex-shrink-0">
+                                <span class="text-sm font-extrabold ${theme.text}">${formatHours(twoWeekTotalHrs)}</span>
+                                <span class="text-[10px] font-medium text-slate-500 block">2-wk total (${twoWeekShifts}s)</span>
+                                ${estPayHtml ? `<span class="block leading-tight mt-0.5">${estPayHtml}</span>` : ''}
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2 mt-2.5 pt-2 border-t border-slate-200/75 text-[11px]">
+                            <div class="bg-white/85 rounded-lg px-2.5 py-1.5 border border-slate-200/60">
+                                <div class="flex items-center justify-between">
+                                    <span class="font-bold text-slate-700">Week 1</span>
+                                    <span class="font-extrabold text-slate-900">${formatHours(w1.hours)}</span>
+                                </div>
+                                <span class="text-[10px] text-slate-500 block truncate">${w1RangeText} (${w1.shifts}s)</span>
+                            </div>
+                            <div class="bg-white/85 rounded-lg px-2.5 py-1.5 border border-slate-200/60">
+                                <div class="flex items-center justify-between">
+                                    <span class="font-bold text-slate-700">Week 2</span>
+                                    <span class="font-extrabold text-slate-900">${formatHours(w2.hours)}</span>
+                                </div>
+                                <span class="text-[10px] text-slate-500 block truncate">${w2RangeText} (${w2.shifts}s)</span>
+                            </div>
+                        </div>
+                    `;
+                    container.appendChild(card);
+                });
+
+                document.getElementById('combinedBiweekHours').textContent = formatHours(totalBiweekHours);
+                document.getElementById('combinedBiweekShifts').textContent =
+                    `W1: ${formatHours(totalWeek1Hours)} • W2: ${formatHours(totalWeek2Hours)}`;
+
+                const combinedPayEl = document.getElementById('combinedBiweekPay');
+                if (hasAnyRate) {
+                    combinedPayEl.textContent = `${formatCurrency(totalBiweekPay)} est.`;
+                    combinedPayEl.classList.remove('hidden');
+                } else {
+                    combinedPayEl.classList.add('hidden');
+                }
+            }
+
+            function renderMonthlySummary() {
+                const prefix = `${state.currentYear}-${String(state.currentMonth + 1).padStart(2, '0')}-`;
+                const statsByWp = {};
+                state.workplaces.forEach(wp => {
+                    statsByWp[wp.id] = { shifts: 0, hours: 0 };
+                });
+
+                Object.keys(state.shifts).forEach(dateKey => {
+                    if (dateKey.startsWith(prefix)) {
+                        (state.shifts[dateKey] || []).forEach(s => {
+                            if (statsByWp[s.workplaceId]) {
+                                statsByWp[s.workplaceId].shifts += 1;
+                                statsByWp[s.workplaceId].hours += calculateDurationHours(s.start, s.end);
+                            }
+                        });
+                    }
+                });
+
+                let grandShifts = 0;
+                let grandHours = 0;
+                let grandPay = 0;
+                let hasAnyRate = false;
+
+                state.workplaces.forEach(wp => {
+                    const st = statsByWp[wp.id];
+                    grandShifts += st.shifts;
+                    grandHours += st.hours;
+                    if (wp.hourlyRate > 0) {
+                        hasAnyRate = true;
+                        grandPay += st.hours * wp.hourlyRate;
+                    }
+                });
+
+                document.getElementById('totalMonthShifts').textContent = grandShifts;
+                document.getElementById('totalMonthHours').textContent = formatHours(grandHours);
+
+                const payBox = document.getElementById('totalMonthPayBox');
+                if (hasAnyRate) {
+                    document.getElementById('totalMonthPay').textContent = formatCurrency(grandPay);
+                    payBox.classList.remove('hidden');
+                } else {
+                    payBox.classList.add('hidden');
+                }
+
+                const breakdown = document.getElementById('workplaceSummaryBreakdown');
+                const printLegend = document.getElementById('printLegend');
+                breakdown.innerHTML = '';
+                printLegend.innerHTML = '';
+
+                state.workplaces.forEach(wp => {
+                    const theme = COLOR_THEMES[wp.color] || COLOR_THEMES.indigo;
+                    const st = statsByWp[wp.id];
+                    const pct = grandHours > 0 ? Math.min(100, Math.round((st.hours / grandHours) * 100)) : 0;
+                    const wpPay = wp.hourlyRate > 0 ? ` • <span class="text-emerald-700 font-bold">${formatCurrency(st.hours * wp.hourlyRate)}</span>` : '';
+
+                    const row = document.createElement('div');
+                    row.innerHTML = `
+                        <div class="flex items-center justify-between text-xs mb-1">
+                            <span class="font-bold text-slate-700 flex items-center gap-1.5 truncate pr-2">
+                                <span class="w-2 h-2 rounded-full ${theme.dot} flex-shrink-0"></span>
+                                <span class="truncate">${escapeHTML(wp.name)}</span>
+                            </span>
+                            <span class="font-semibold text-slate-600 flex-shrink-0">
+                                ${st.shifts}d • <strong class="text-slate-900">${formatHours(st.hours)}</strong>${wpPay}
+                            </span>
+                        </div>
+                        <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                            <div class="h-full ${theme.bar} rounded-full transition-all duration-300" style="width: ${pct}%"></div>
+                        </div>
+                    `;
+                    breakdown.appendChild(row);
+
+                    // Print Legend item
+                    const legendItem = document.createElement('span');
+                    legendItem.className = 'inline-flex items-center gap-1.5 font-semibold';
+                    legendItem.innerHTML = `<span class="w-2.5 h-2.5 rounded-full ${theme.dot}"></span> ${escapeHTML(wp.name)} (${formatHours(st.hours)})`;
+                    printLegend.appendChild(legendItem);
+                });
+
+                document.getElementById('printSummaryLine').textContent =
+                    `Total: ${grandShifts} shifts • ${formatHours(grandHours)}${hasAnyRate ? ' • Est. Pay: ' + formatCurrency(grandPay) : ''}`;
+            }
+
+            function renderCalendarGrid() {
+                const grid = document.getElementById('calendarGrid');
+                grid.innerHTML = '';
+
+                const year = state.currentYear;
+                const month = state.currentMonth;
+                const firstDayIndex = new Date(year, month, 1).getDay(); // 0=Sun
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+                const prevMonthDays = new Date(year, month, 0).getDate();
+
+                const totalCells = Math.ceil((firstDayIndex + daysInMonth) / 7) * 7;
+                const todayKey = formatDateKey(TODAY.year, TODAY.month, TODAY.day);
+
+                for (let i = 0; i < totalCells; i++) {
+                    let cellYear = year;
+                    let cellMonth = month;
+                    let dayNum;
+                    let isCurrentMonth = true;
+
+                    if (i < firstDayIndex) {
+                        dayNum = prevMonthDays - firstDayIndex + i + 1;
+                        cellMonth = month - 1;
+                        if (cellMonth < 0) {
+                            cellMonth = 11;
+                            cellYear -= 1;
+                        }
+                        isCurrentMonth = false;
+                    } else if (i >= firstDayIndex + daysInMonth) {
+                        dayNum = i - (firstDayIndex + daysInMonth) + 1;
+                        cellMonth = month + 1;
+                        if (cellMonth > 11) {
+                            cellMonth = 0;
+                            cellYear += 1;
+                        }
+                        isCurrentMonth = false;
+                    } else {
+                        dayNum = i - firstDayIndex + 1;
+                    }
+
+                    const dateKey = formatDateKey(cellYear, cellMonth, dayNum);
+                    const isToday = dateKey === todayKey;
+                    const isSelected = dateKey === state.selectedDateStr;
+
+                    const allDayShifts = (state.shifts[dateKey] || [])
+                        .slice()
+                        .sort((a, b) => a.start.localeCompare(b.start));
+
+                    const visibleShifts = allDayShifts.filter(s => {
+                        const wp = state.workplaces.find(w => w.id === s.workplaceId);
+                        return wp ? wp.visible : true;
+                    });
+
+                    const cell = document.createElement('div');
+                    cell.className = `calendar-cell min-h-[92px] sm:min-h-[120px] p-1.5 sm:p-2 flex flex-col justify-between transition-all cursor-pointer group relative ${
+                        isCurrentMonth ? 'bg-white hover:bg-indigo-50/30' : 'bg-slate-50/75 text-slate-400 hover:bg-slate-100/70'
+                    } ${isSelected ? 'ring-2 ring-inset ring-indigo-500 bg-indigo-50/20' : ''}`;
+
+                    // Top row: Date number + quick add indicator
+                    const topRow = document.createElement('div');
+                    topRow.className = 'flex items-center justify-between mb-1';
+
+                    const dateBadge = document.createElement('span');
+                    if (isToday) {
+                        dateBadge.className = 'w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-indigo-600 text-white text-xs font-extrabold flex items-center justify-center shadow-xs';
+                    } else if (isSelected) {
+                        dateBadge.className = 'w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-indigo-100 text-indigo-800 text-xs font-extrabold flex items-center justify-center';
+                    } else {
+                        dateBadge.className = `text-xs sm:text-sm font-semibold px-1 ${isCurrentMonth ? 'text-slate-700' : 'text-slate-400'}`;
+                    }
+                    dateBadge.textContent = dayNum;
+                    topRow.appendChild(dateBadge);
+
+                    if (visibleShifts.length > 0) {
+                        const dayTotalHrs = visibleShifts.reduce((acc, s) => acc + calculateDurationHours(s.start, s.end), 0);
+                        const hrsChip = document.createElement('span');
+                        hrsChip.className = 'text-[10px] font-bold text-slate-400 group-hover:text-indigo-600 transition-colors';
+                        hrsChip.textContent = formatHours(dayTotalHrs);
+                        topRow.appendChild(hrsChip);
+                    } else {
+                        const plusHint = document.createElement('span');
+                        plusHint.className = 'opacity-0 group-hover:opacity-100 text-slate-400 hover:text-indigo-600 text-xs transition-opacity no-print';
+                        plusHint.innerHTML = '<i class="fa-solid fa-plus"></i>';
+                        topRow.appendChild(plusHint);
+                    }
+
+                    cell.appendChild(topRow);
+
+                    // Shifts Stack
+                    const shiftsStack = document.createElement('div');
+                    shiftsStack.className = 'space-y-1 flex-1 overflow-hidden';
+
+                    visibleShifts.forEach(s => {
+                        const wp = state.workplaces.find(w => w.id === s.workplaceId) || state.workplaces[0];
+                        const theme = COLOR_THEMES[wp.color] || COLOR_THEMES.indigo;
+                        const dur = calculateDurationHours(s.start, s.end);
+                        const hasNote = Boolean(s.notes && s.notes.trim().length > 0);
+
+                        const pill = document.createElement('div');
+                        pill.className = `px-1.5 py-1 rounded-lg border text-[10px] sm:text-[11px] leading-tight ${theme.bgPill} ${theme.border} ${theme.text} shadow-2xs`;
+                        pill.innerHTML = `
+                            <div class="flex items-center justify-between gap-1 font-bold truncate">
+                                <span class="truncate">${escapeHTML(wp.name)}</span>
+                                ${hasNote ? '<i class="fa-regular fa-note-sticky text-[9px] opacity-80 flex-shrink-0" title="Has shift note"></i>' : ''}
+                            </div>
+                            <div class="flex items-center justify-between text-[9px] sm:text-[10px] opacity-90 mt-0.5">
+                                <span>${formatTime12h(s.start)}–${formatTime12h(s.end)}</span>
+                                <span class="font-semibold">${formatHours(dur)}</span>
+                            </div>
+                        `;
+                        shiftsStack.appendChild(pill);
+                    });
+
+                    cell.appendChild(shiftsStack);
+
+                    // Click cell: select date, sync Weekly & Bi-Weekly periods, and open Day Schedule Modal
+                    cell.addEventListener('click', () => {
+                        state.selectedDateStr = dateKey;
+                        state.selectedWeekAnchor = new Date(cellYear, cellMonth, dayNum);
+                        renderAnchorLabels();
+                        renderWeeklySummary();
+                        renderBiweeklySummary();
+                        renderCalendarGrid();
+                        openDayModal(dateKey);
+                    });
+
+                    grid.appendChild(cell);
+                }
+            }
+
+            // --- Modal 1: Day Schedule & Shift Editor ---
+            const dayModal = document.getElementById('dayModal');
+
+            function updateLiveShiftDuration() {
+                const startVal = document.getElementById('shiftStartTime').value;
+                const endVal = document.getElementById('shiftEndTime').value;
+                const hrs = calculateDurationHours(startVal, endVal);
+                document.getElementById('liveShiftDurationBadge').textContent = `${hrs.toFixed(1)} hrs`;
+            }
+
+            function openDayModal(dateKey) {
+                state.selectedDateStr = dateKey;
+                const [y, m, d] = dateKey.split('-').map(Number);
+                const dateObj = new Date(y, m - 1, d);
+
+                document.getElementById('modalDayOfWeek').textContent = DAY_NAMES[dateObj.getDay()];
+                document.getElementById('modalFullDate').textContent = `${MONTH_NAMES[m - 1]} ${d}, ${y}`;
+
+                resetShiftForm();
+                renderDayModalShifts();
+
+                dayModal.classList.remove('hidden');
+                dayModal.classList.add('flex');
+            }
+
+            function closeDayModal() {
+                dayModal.classList.add('hidden');
+                dayModal.classList.remove('flex');
+                resetShiftForm();
+            }
+
+            function renderWorkplaceRadioCards(selectedWpId) {
+                const group = document.getElementById('workplaceRadioGroup');
+                group.innerHTML = '';
+
+                state.workplaces.forEach((wp, idx) => {
+                    const theme = COLOR_THEMES[wp.color] || COLOR_THEMES.indigo;
+                    const isChecked = wp.id === selectedWpId || (!selectedWpId && idx === 0);
+
+                    const label = document.createElement('label');
+                    label.className = `flex items-center gap-2 p-2.5 rounded-xl border cursor-pointer transition-all ${
+                        isChecked ? `${theme.bgPill} ${theme.border} ring-2 ${theme.ring}` : 'bg-white border-slate-200 hover:bg-slate-50'
+                    }`;
+                    label.innerHTML = `
+                        <input type="radio" name="shiftWorkplace" value="${wp.id}" ${isChecked ? 'checked' : ''} class="sr-only">
+                        <span class="w-3 h-3 rounded-full flex-shrink-0 ${theme.dot}"></span>
+                        <div class="min-w-0">
+                            <span class="text-xs font-bold text-slate-800 block truncate">${escapeHTML(wp.name)}</span>
+                            <span class="text-[10px] text-slate-500 block">${idx === 1 ? 'Mon–Sun' : 'Sun–Sat'}</span>
+                        </div>
+                    `;
+                    label.querySelector('input').addEventListener('change', () => {
+                        renderWorkplaceRadioCards(wp.id);
+                    });
+                    group.appendChild(label);
+                });
+            }
+
+            function renderDayModalShifts() {
+                const container = document.getElementById('dayShiftsContainer');
+                const shifts = (state.shifts[state.selectedDateStr] || [])
+                    .slice()
+                    .sort((a, b) => a.start.localeCompare(b.start));
+
+                document.getElementById('dayShiftCountBadge').textContent =
+                    `${shifts.length} ${shifts.length === 1 ? 'shift' : 'shifts'}`;
+
+                container.innerHTML = '';
+
+                if (shifts.length === 0) {
+                    container.innerHTML = `
+                        <div class="text-center py-6 px-4 rounded-xl border border-dashed border-slate-200 bg-slate-50/60">
+                            <p class="text-xs font-medium text-slate-500">No shifts scheduled on this date yet.</p>
+                            <p class="text-[11px] text-slate-400 mt-0.5">Use the form below to add a shift or double shift.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                shifts.forEach(s => {
+                    const wp = state.workplaces.find(w => w.id === s.workplaceId) || state.workplaces[0];
+                    const theme = COLOR_THEMES[wp.color] || COLOR_THEMES.indigo;
+                    const dur = calculateDurationHours(s.start, s.end);
+                    const estPay = wp.hourlyRate > 0 ? ` • ${formatCurrency(dur * wp.hourlyRate)}` : '';
+
+                    const card = document.createElement('div');
+                    card.className = `p-3.5 rounded-xl border ${theme.border} ${theme.bgLight} flex items-start justify-between gap-3`;
+                    card.innerHTML = `
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center gap-2">
+                                <span class="w-2.5 h-2.5 rounded-full ${theme.dot} flex-shrink-0"></span>
+                                <span class="text-xs font-extrabold text-slate-900 truncate">${escapeHTML(wp.name)}</span>
+                                <span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-white/90 ${theme.text} border ${theme.border}">
+                                    ${formatHours(dur)}${estPay}
+                                </span>
+                            </div>
+                            <p class="text-xs font-semibold text-slate-700 mt-1">
+                                <i class="fa-regular fa-clock mr-1 text-slate-400"></i> ${s.start} – ${s.end}
+                            </p>
+                            ${s.notes ? `<p class="text-xs text-slate-600 mt-1.5 bg-white/80 p-2 rounded-lg border border-slate-200/60 whitespace-pre-wrap">${escapeHTML(s.notes)}</p>` : ''}
+                        </div>
+                        <div class="flex items-center gap-1 flex-shrink-0">
+                            <button type="button" data-edit-id="${s.id}" class="edit-shift-btn w-8 h-8 rounded-lg bg-white text-slate-600 hover:text-indigo-600 border border-slate-200 flex items-center justify-center transition-colors" title="Edit Shift">
+                                <i class="fa-solid fa-pen text-xs"></i>
+                            </button>
+                            <button type="button" data-del-id="${s.id}" class="del-shift-btn w-8 h-8 rounded-lg bg-white text-slate-600 hover:text-rose-600 border border-slate-200 flex items-center justify-center transition-colors" title="Delete Shift">
+                                <i class="fa-solid fa-trash text-xs"></i>
+                            </button>
+                        </div>
+                    `;
+                    container.appendChild(card);
+                });
+
+                container.querySelectorAll('.edit-shift-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const shiftId = btn.getAttribute('data-edit-id');
+                        const target = (state.shifts[state.selectedDateStr] || []).find(x => x.id === shiftId);
+                        if (!target) return;
+
+                        document.getElementById('editingShiftId').value = target.id;
+                        document.getElementById('shiftFormTitle').innerHTML =
+                            '<i class="fa-solid fa-pen-to-square text-amber-600"></i> Edit Shift';
+                        document.getElementById('saveShiftBtnText').textContent = 'Update Shift';
+                        document.getElementById('cancelEditShiftBtn').classList.remove('hidden');
+
+                        renderWorkplaceRadioCards(target.workplaceId);
+                        document.getElementById('shiftStartTime').value = target.start;
+                        document.getElementById('shiftEndTime').value = target.end;
+                        document.getElementById('shiftNotes').value = target.notes || '';
+                        updateLiveShiftDuration();
+                    });
+                });
+
+                container.querySelectorAll('.del-shift-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const shiftId = btn.getAttribute('data-del-id');
+                        state.shifts[state.selectedDateStr] = (state.shifts[state.selectedDateStr] || [])
+                            .filter(x => x.id !== shiftId);
+                        if (state.shifts[state.selectedDateStr].length === 0) {
+                            delete state.shifts[state.selectedDateStr];
+                        }
+                        saveShifts();
+                        renderDayModalShifts();
+                        renderWeeklySummary();
+                        renderBiweeklySummary();
+                        renderMonthlySummary();
+                        renderCalendarGrid();
+                        showToast('Shift deleted');
+                    });
+                });
+            }
+
+            function resetShiftForm() {
+                document.getElementById('editingShiftId').value = '';
+                document.getElementById('shiftFormTitle').innerHTML =
+                    '<i class="fa-solid fa-plus-circle text-indigo-600"></i> Add Shift';
+                document.getElementById('saveShiftBtnText').textContent = 'Save Shift';
+                document.getElementById('cancelEditShiftBtn').classList.add('hidden');
+                document.getElementById('shiftStartTime').value = '08:00';
+                document.getElementById('shiftEndTime').value = '16:00';
+                document.getElementById('shiftNotes').value = '';
+                renderWorkplaceRadioCards(state.workplaces[0]?.id);
+                updateLiveShiftDuration();
+            }
+
+            document.getElementById('shiftForm').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const dateKey = state.selectedDateStr;
+                if (!dateKey) return;
+
+                const selectedRadio = document.querySelector('input[name="shiftWorkplace"]:checked');
+                const workplaceId = selectedRadio ? selectedRadio.value : state.workplaces[0].id;
+                const start = document.getElementById('shiftStartTime').value;
+                const end = document.getElementById('shiftEndTime').value;
+                const notes = document.getElementById('shiftNotes').value.trim();
+                const editingId = document.getElementById('editingShiftId').value;
+
+                if (!start || !end) {
+                    showToast('Please select both start and end times.', 'error');
+                    return;
+                }
+
+                if (!state.shifts[dateKey]) {
+                    state.shifts[dateKey] = [];
+                }
+
+                if (editingId) {
+                    const idx = state.shifts[dateKey].findIndex(s => s.id === editingId);
+                    if (idx !== -1) {
+                        state.shifts[dateKey][idx] = { id: editingId, workplaceId, start, end, notes };
+                        showToast('Shift updated');
+                    }
+                } else {
+                    state.shifts[dateKey].push({
+                        id: 'sh-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+                        workplaceId,
+                        start,
+                        end,
+                        notes
+                    });
+                    showToast('Shift added to schedule');
+                }
+
+                saveShifts();
+                resetShiftForm();
+                renderDayModalShifts();
+                renderWeeklySummary();
+                renderBiweeklySummary();
+                renderMonthlySummary();
+                renderCalendarGrid();
+            });
+
+            document.querySelectorAll('.preset-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.getElementById('shiftStartTime').value = btn.getAttribute('data-start');
+                    document.getElementById('shiftEndTime').value = btn.getAttribute('data-end');
+                    updateLiveShiftDuration();
+                });
+            });
+
+            document.getElementById('customPresetBtn').addEventListener('click', () => {
+                document.getElementById('shiftStartTime').focus();
+            });
+
+            document.getElementById('shiftStartTime').addEventListener('input', updateLiveShiftDuration);
+            document.getElementById('shiftEndTime').addEventListener('input', updateLiveShiftDuration);
+            document.getElementById('cancelEditShiftBtn').addEventListener('click', resetShiftForm);
+            document.getElementById('closeDayModalBtn').addEventListener('click', closeDayModal);
+            dayModal.addEventListener('click', (e) => {
+                if (e.target === dayModal) closeDayModal();
+            });
+
+            // --- Modal 2: Customize 3 Workplaces ---
+            const workplaceModal = document.getElementById('workplaceModal');
+
+            function renderWorkplaceModalFields(customAnchors = null) {
+                const container = document.getElementById('workplaceSettingsFields');
+                container.innerHTML = '';
+
+                state.workplaces.forEach((wp, idx) => {
+                    const weekBadge = idx === 1
+                        ? '<span class="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">Weekly: Mon–Sun</span>'
+                        : '<span class="text-[10px] font-semibold px-2 py-0.5 rounded bg-slate-200/80 text-slate-700">Weekly: Sun–Sat</span>';
+
+                    const anchorVal = customAnchors
+                        ? customAnchors[idx]
+                        : (wp.biweekAnchor || DEFAULT_BIWEEK_ANCHORS[idx]);
+
+                    const colorSwatches = Object.keys(COLOR_THEMES).map(colorKey => {
+                        const th = COLOR_THEMES[colorKey];
+                        const isSelected = wp.color === colorKey;
+                        return `
+                            <label class="cursor-pointer">
+                                <input type="radio" name="wpColor_${idx}" value="${colorKey}" ${isSelected ? 'checked' : ''} class="sr-only peer">
+                                <span class="w-7 h-7 rounded-full ${th.dot} flex items-center justify-center text-white text-xs ring-offset-2 peer-checked:ring-2 ${th.ring} transition-all">
+                                    <i class="fa-solid fa-check ${isSelected ? 'opacity-100' : 'opacity-0'}"></i>
+                                </span>
+                            </label>
+                        `;
+                    }).join('');
+
+                    const block = document.createElement('div');
+                    block.className = 'p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-3';
+                    block.innerHTML = `
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-extrabold uppercase tracking-wider text-slate-500">Workplace #${idx + 1}</span>
+                            ${weekBadge}
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div class="sm:col-span-2">
+                                <label class="block text-[11px] font-semibold text-slate-600 mb-1">Job / Location Name</label>
+                                <input type="text" id="wpName_${idx}" required maxlength="36" value="${escapeHTML(wp.name)}" class="w-full px-3 py-2 text-sm font-medium bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-semibold text-slate-600 mb-1">Hourly Rate ($)</label>
+                                <input type="number" id="wpRate_${idx}" min="0" step="0.01" placeholder="0.00" value="${wp.hourlyRate > 0 ? wp.hourlyRate : ''}" class="w-full px-3 py-2 text-sm font-medium bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
+                            <div>
+                                <label class="block text-[11px] font-semibold text-slate-600 mb-1.5">Badge Color</label>
+                                <div class="flex items-center gap-2.5" id="swatchGroup_${idx}">
+                                    ${colorSwatches}
+                                </div>
+                            </div>
+                            <div>
+                                <label for="wpAnchor_${idx}" class="block text-[11px] font-semibold text-slate-600 mb-1">2-Week Cycle Start Anchor</label>
+                                <input type="date" id="wpAnchor_${idx}" required value="${anchorVal}" class="w-full px-3 py-1.5 text-xs font-semibold bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                        </div>
+                    `;
+                    container.appendChild(block);
+
+                    block.querySelectorAll(`input[name="wpColor_${idx}"]`).forEach(radio => {
+                        radio.addEventListener('change', () => {
+                            block.querySelectorAll(`#swatchGroup_${idx} i`).forEach(ic => ic.classList.replace('opacity-100', 'opacity-0'));
+                            const activeIcon = radio.parentElement.querySelector('i');
+                            if (activeIcon) activeIcon.classList.replace('opacity-0', 'opacity-100');
+                        });
+                    });
+                });
+            }
+
+            function openWorkplaceModal() {
+                renderWorkplaceModalFields();
+                workplaceModal.classList.remove('hidden');
+                workplaceModal.classList.add('flex');
+            }
+
+            function closeWorkplaceModal() {
+                workplaceModal.classList.add('hidden');
+                workplaceModal.classList.remove('flex');
+            }
+
+            document.getElementById('resetDefaultAnchorsBtn').addEventListener('click', () => {
+                DEFAULT_BIWEEK_ANCHORS.forEach((defDate, idx) => {
+                    const input = document.getElementById(`wpAnchor_${idx}`);
+                    if (input) input.value = defDate;
+                });
+                showToast('Reset anchors to Nov 8, Nov 9 & Nov 8, 2026');
+            });
+
+            document.getElementById('workplacesForm').addEventListener('submit', (e) => {
+                e.preventDefault();
+                state.workplaces.forEach((wp, idx) => {
+                    const nameInput = document.getElementById(`wpName_${idx}`).value.trim();
+                    const rateInput = parseFloat(document.getElementById(`wpRate_${idx}`).value);
+                    const anchorInput = document.getElementById(`wpAnchor_${idx}`).value;
+                    const colorRadio = document.querySelector(`input[name="wpColor_${idx}"]:checked`);
+
+                    wp.name = nameInput || `Workplace ${idx + 1}`;
+                    wp.hourlyRate = (!isNaN(rateInput) && rateInput > 0) ? Math.round(rateInput * 100) / 100 : 0;
+                    if (parseDateKeyToLocalDate(anchorInput)) {
+                        wp.biweekAnchor = anchorInput;
+                    }
+                    if (colorRadio && COLOR_THEMES[colorRadio.value]) {
+                        wp.color = colorRadio.value;
+                    }
+                });
+
+                saveWorkplaces();
+                closeWorkplaceModal();
+                renderAll();
+                showToast('Workplaces updated');
+            });
+
+            document.getElementById('openWorkplaceModalBtn').addEventListener('click', openWorkplaceModal);
+            document.getElementById('editWorkplacesLink').addEventListener('click', openWorkplaceModal);
+            document.getElementById('closeWorkplaceModalBtn').addEventListener('click', closeWorkplaceModal);
+            document.getElementById('cancelWorkplaceModalBtn').addEventListener('click', closeWorkplaceModal);
+            workplaceModal.addEventListener('click', (e) => {
+                if (e.target === workplaceModal) closeWorkplaceModal();
+            });
+
+            // --- Navigation, Weekly & Bi-Weekly Controls ---
+            document.getElementById('prevMonthBtn').addEventListener('click', () => {
+                if (state.currentMonth === 0) {
+                    state.currentMonth = 11;
+                    state.currentYear -= 1;
+                } else {
+                    state.currentMonth -= 1;
+                }
+                state.selectedDateStr = formatDateKey(state.currentYear, state.currentMonth, 1);
+                state.selectedWeekAnchor = new Date(state.currentYear, state.currentMonth, 1);
+                renderAll();
+            });
+
+            document.getElementById('nextMonthBtn').addEventListener('click', () => {
+                if (state.currentMonth === 11) {
+                    state.currentMonth = 0;
+                    state.currentYear += 1;
+                } else {
+                    state.currentMonth += 1;
+                }
+                state.selectedDateStr = formatDateKey(state.currentYear, state.currentMonth, 1);
+                state.selectedWeekAnchor = new Date(state.currentYear, state.currentMonth, 1);
+                renderAll();
+            });
+
+            document.getElementById('todayBtn').addEventListener('click', () => {
+                state.currentYear = TODAY.year;
+                state.currentMonth = TODAY.month;
+                state.selectedDateStr = formatDateKey(TODAY.year, TODAY.month, TODAY.day);
+                state.selectedWeekAnchor = new Date(TODAY.year, TODAY.month, TODAY.day);
+                renderAll();
+                showToast(`Jumped to ${MONTH_NAMES[TODAY.month]} ${TODAY.day}, ${TODAY.year}`);
+            });
+
+            document.getElementById('quickAddTodayBtn').addEventListener('click', () => {
+                openDayModal(state.selectedDateStr || formatDateKey(TODAY.year, TODAY.month, TODAY.day));
+            });
+
+            // Weekly Hours Navigation (<, This Week, >)
+            document.getElementById('prevWeekBtn').addEventListener('click', () => {
+                state.selectedWeekAnchor.setDate(state.selectedWeekAnchor.getDate() - 7);
+                state.currentYear = state.selectedWeekAnchor.getFullYear();
+                state.currentMonth = state.selectedWeekAnchor.getMonth();
+                state.selectedDateStr = formatDateKey(
+                    state.selectedWeekAnchor.getFullYear(),
+                    state.selectedWeekAnchor.getMonth(),
+                    state.selectedWeekAnchor.getDate()
+                );
+                renderAll();
+            });
+
+            document.getElementById('nextWeekBtn').addEventListener('click', () => {
+                state.selectedWeekAnchor.setDate(state.selectedWeekAnchor.getDate() + 7);
+                state.currentYear = state.selectedWeekAnchor.getFullYear();
+                state.currentMonth = state.selectedWeekAnchor.getMonth();
+                state.selectedDateStr = formatDateKey(
+                    state.selectedWeekAnchor.getFullYear(),
+                    state.selectedWeekAnchor.getMonth(),
+                    state.selectedWeekAnchor.getDate()
+                );
+                renderAll();
+            });
+
+            document.getElementById('currentWeekBtn').addEventListener('click', () => {
+                state.selectedWeekAnchor = new Date(TODAY.year, TODAY.month, TODAY.day);
+                state.currentYear = TODAY.year;
+                state.currentMonth = TODAY.month;
+                state.selectedDateStr = formatDateKey(TODAY.year, TODAY.month, TODAY.day);
+                renderAll();
+                showToast('Showing current week');
+            });
+
+            // Bi-Weekly Pay Period Navigation (<, Current 2-Wk, >)
+            document.getElementById('prevBiweekBtn').addEventListener('click', () => {
+                state.selectedWeekAnchor.setDate(state.selectedWeekAnchor.getDate() - 14);
+                state.currentYear = state.selectedWeekAnchor.getFullYear();
+                state.currentMonth = state.selectedWeekAnchor.getMonth();
+                state.selectedDateStr = formatDateKey(
+                    state.selectedWeekAnchor.getFullYear(),
+                    state.selectedWeekAnchor.getMonth(),
+                    state.selectedWeekAnchor.getDate()
+                );
+                renderAll();
+            });
+
+            document.getElementById('nextBiweekBtn').addEventListener('click', () => {
+                state.selectedWeekAnchor.setDate(state.selectedWeekAnchor.getDate() + 14);
+                state.currentYear = state.selectedWeekAnchor.getFullYear();
+                state.currentMonth = state.selectedWeekAnchor.getMonth();
+                state.selectedDateStr = formatDateKey(
+                    state.selectedWeekAnchor.getFullYear(),
+                    state.selectedWeekAnchor.getMonth(),
+                    state.selectedWeekAnchor.getDate()
+                );
+                renderAll();
+            });
+
+            document.getElementById('currentBiweekBtn').addEventListener('click', () => {
+                state.selectedWeekAnchor = new Date(TODAY.year, TODAY.month, TODAY.day);
+                state.currentYear = TODAY.year;
+                state.currentMonth = TODAY.month;
+                state.selectedDateStr = formatDateKey(TODAY.year, TODAY.month, TODAY.day);
+                renderAll();
+                showToast('Showing current 2-week pay period');
+            });
+
+            // --- Export, CSV, JSON Backup & Print ---
+            const exportDropdown = document.getElementById('exportDropdown');
+            document.getElementById('exportMenuBtn').addEventListener('click', (e) => {
+                e.stopPropagation();
+                exportDropdown.classList.toggle('hidden');
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!document.getElementById('exportDropdownContainer').contains(e.target)) {
+                    exportDropdown.classList.add('hidden');
+                }
+            });
+
+            // 1. Export Month CSV (Shifts + Weekly + Bi-Weekly W1/W2/2-Wk Totals + Monthly Summary)
+            document.getElementById('exportCsvBtn').addEventListener('click', () => {
+                exportDropdown.classList.add('hidden');
+                const prefix = `${state.currentYear}-${String(state.currentMonth + 1).padStart(2, '0')}-`;
+                const rows = [['Date', 'Day', 'Workplace', 'Week Cycle', 'Start Time', 'End Time', 'Hours', 'Est. Pay ($)', 'Notes']];
+
+                const matchingDates = Object.keys(state.shifts).filter(k => k.startsWith(prefix)).sort();
+
+                if (matchingDates.length === 0) {
+                    showToast('No shifts in this month to export.', 'error');
+                    return;
+                }
+
+                matchingDates.forEach(dateKey => {
+                    const [y, m, d] = dateKey.split('-').map(Number);
+                    const dayName = DAY_NAMES[new Date(y, m - 1, d).getDay()];
+                    const dayShifts = [...state.shifts[dateKey]].sort((a, b) => a.start.localeCompare(b.start));
+
+                    dayShifts.forEach(s => {
+                        const wpIndex = state.workplaces.findIndex(w => w.id === s.workplaceId);
+                        const wp = wpIndex !== -1 ? state.workplaces[wpIndex] : state.workplaces[0];
+                        const weekCycle = wpIndex === 1 ? 'Mon-Sun' : 'Sun-Sat';
+                        const hours = calculateDurationHours(s.start, s.end);
+                        const pay = wp.hourlyRate > 0 ? (hours * wp.hourlyRate).toFixed(2) : '';
+                        const safeWp = `"${wp.name.replace(/"/g, '""')}"`;
+                        const safeNotes = `"${(s.notes || '').replace(/"/g, '""')}"`;
+                        rows.push([dateKey, dayName, safeWp, weekCycle, s.start, s.end, hours, pay, safeNotes]);
+                    });
+                });
+
+                // Weekly Summary Section
+                rows.push([]);
+                rows.push(['Selected Week Summary', '', '', '', '', '', '', '', '']);
+                rows.push(['Workplace', 'Week Cycle', 'Week Range', 'Shifts', 'Hours', 'Est. Pay ($)', '', '', '']);
+                state.workplaces.forEach((wp, idx) => {
+                    const isSecondJob = idx === 1;
+                    const { start, end } = getWeekBounds(state.selectedWeekAnchor, isSecondJob);
+                    const { hours, shifts } = sumWorkplaceStatsInRange(wp.id, start, end);
+                    const pay = wp.hourlyRate > 0 ? (hours * wp.hourlyRate).toFixed(2) : '';
+                    const safeWp = `"${wp.name.replace(/"/g, '""')}"`;
+                    rows.push([safeWp, isSecondJob ? 'Mon-Sun' : 'Sun-Sat', `"${formatShortRange(start, end)}"`, shifts, hours, pay, '', '', '']);
+                });
+
+                // Bi-Weekly (2-Week) Pay Period Section
+                rows.push([]);
+                rows.push(['Bi-Weekly (2-Week) Pay Period Summary', '', '', '', '', '', '', '', '']);
+                rows.push(['Workplace', '2-Week Period', 'Week 1 Range', 'Week 1 Hrs', 'Week 2 Range', 'Week 2 Hrs', 'Total 2-Wk Hrs', 'Est. 2-Wk Pay ($)', '']);
+                state.workplaces.forEach((wp, idx) => {
+                    const bounds = getBiweeklyPeriodBounds(state.selectedWeekAnchor, wp.biweekAnchor, idx);
+                    const w1 = sumWorkplaceStatsInRange(wp.id, bounds.week1Start, bounds.week1End);
+                    const w2 = sumWorkplaceStatsInRange(wp.id, bounds.week2Start, bounds.week2End);
+                    const total2Wk = Math.round((w1.hours + w2.hours) * 10) / 10;
+                    const pay2Wk = wp.hourlyRate > 0 ? (total2Wk * wp.hourlyRate).toFixed(2) : '';
+                    const safeWp = `"${wp.name.replace(/"/g, '""')}"`;
+                    rows.push([
+                        safeWp,
+                        `"${formatShortRange(bounds.periodStart, bounds.periodEnd)}"`,
+                        `"${formatShortRange(bounds.week1Start, bounds.week1End)}"`,
+                        w1.hours,
+                        `"${formatShortRange(bounds.week2Start, bounds.week2End)}"`,
+                        w2.hours,
+                        total2Wk,
+                        pay2Wk,
+                        ''
+                    ]);
+                });
+
+                // Monthly Summary Section
+                rows.push([]);
+                rows.push([`${MONTH_NAMES[state.currentMonth]} ${state.currentYear} Monthly Summary`, '', '', '', '', '', '', '', '']);
+                rows.push(['Workplace', 'Week Cycle', 'Total Shifts', 'Total Hours', 'Hourly Rate ($)', 'Est. Gross Pay ($)', '', '', '']);
+                state.workplaces.forEach((wp, idx) => {
+                    let mShifts = 0;
+                    let mHours = 0;
+                    matchingDates.forEach(dk => {
+                        (state.shifts[dk] || []).forEach(s => {
+                            if (s.workplaceId === wp.id) {
+                                mShifts += 1;
+                                mHours += calculateDurationHours(s.start, s.end);
+                            }
+                        });
+                    });
+                    const safeWp = `"${wp.name.replace(/"/g, '""')}"`;
+                    const rate = wp.hourlyRate > 0 ? wp.hourlyRate.toFixed(2) : '';
+                    const pay = wp.hourlyRate > 0 ? (mHours * wp.hourlyRate).toFixed(2) : '';
+                    rows.push([safeWp, idx === 1 ? 'Mon-Sun' : 'Sun-Sat', mShifts, Math.round(mHours * 10) / 10, rate, pay, '', '', '']);
+                });
+
+                const csvString = rows.map(r => r.join(',')).join('\n');
+                const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                const monthSlug = MONTH_NAMES[state.currentMonth].toLowerCase();
+                link.href = url;
+                link.download = `shiftsync-${monthSlug}-${state.currentYear}.csv`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+
+                showToast('Monthly CSV exported');
+            });
+
+            // 2. Print / Save PDF
+            document.getElementById('printViewBtn').addEventListener('click', () => {
+                exportDropdown.classList.add('hidden');
+                window.print();
+            });
+
+            // 3. Full JSON Backup Download
+            document.getElementById('backupJsonBtn').addEventListener('click', () => {
+                exportDropdown.classList.add('hidden');
+                const backupPayload = {
+                    app: 'ShiftSync',
+                    version: 3,
+                    exportedAt: new Date().toISOString(),
+                    workplaces: state.workplaces,
+                    shifts: state.shifts
+                };
+                const blob = new Blob([JSON.stringify(backupPayload, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `shiftsync-backup-${formatDateKey(TODAY.year, TODAY.month, TODAY.day)}.json`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+
+                showToast('Full schedule backup (.json) downloaded');
+            });
+
+            // 4. Restore JSON Backup
+            const restoreInput = document.getElementById('restoreJsonInput');
+            document.getElementById('restoreJsonBtn').addEventListener('click', () => {
+                exportDropdown.classList.add('hidden');
+                restoreInput.value = '';
+                restoreInput.click();
+            });
+
+            restoreInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const data = JSON.parse(event.target.result);
+                        if (!data || !Array.isArray(data.workplaces) || data.workplaces.length !== 3 || typeof data.shifts !== 'object') {
+                            throw new Error('Invalid ShiftSync backup file format.');
+                        }
+                        state.workplaces = data.workplaces.map((wp, idx) => ({
+                            id: wp.id || `wp-${idx + 1}`,
+                            name: wp.name || `Workplace ${idx + 1}`,
+                            color: COLOR_THEMES[wp.color] ? wp.color : ['indigo', 'emerald', 'amber'][idx],
+                            hourlyRate: typeof wp.hourlyRate === 'number' ? wp.hourlyRate : 0,
+                            visible: wp.visible !== false,
+                            biweekAnchor: parseDateKeyToLocalDate(wp.biweekAnchor)
+                                ? wp.biweekAnchor
+                                : DEFAULT_BIWEEK_ANCHORS[idx]
+                        }));
+                        state.shifts = data.shifts;
+                        saveWorkplaces();
+                        saveShifts();
+                        renderAll();
+                        showToast('Schedule restored from backup!');
+                    } catch (err) {
+                        showToast('Could not restore: invalid backup file.', 'error');
+                    }
+                };
+                reader.readAsText(file);
+            });
+
+            // Keyboard Escape Handler
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    closeDayModal();
+                    closeWorkplaceModal();
+                    exportDropdown.classList.add('hidden');
+                }
+            });
+
+            // Boot Application
+            loadState();
+            renderAll();
+        });
+    </script>
+</body>
+</html>
